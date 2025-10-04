@@ -203,3 +203,58 @@ get a 200 OK response with no body
 A more complicated (but arguably better) solution is to create a custom implementation of
 http.FileSystem, and have it return an os.ErrNotExist error for any directories. A full
 explanation and sample code can be found in this blog post.
+
+
+ THE HTTP HANDLER INTERFACE
+Strictly speaking a handler is an object which satisfies the http.handler interface
+ type handler interface {
+   serveHttp(ResponseWriter, *Request)
+ }
+
+in simple terms, this is basically means that to be a handler an object must have a serveHttp() method with the exact signiture
+ ServerHttp(http.ResponseWriter, *http.Request)
+
+ so in simpler terms a handler might look something like this
+  type home struct {}
+  func (h *home) serverHTTP(W http.ResponseWritter, r *http.Request){
+   w.Write([]byte("this is my home page"))
+  }
+
+   ENVIRONMENT VARIABLES
+
+if you have built and deployed web applications before, then you're probably thinking what abut environment variables?
+ surely it is a good-practice to store configuration settings there?
+
+ if you want, you can store your configuration settings in environment variable and access them directly from your application by
+  using the os.Getenv() function like so : 
+     addr := os.Getenv("SNIPPETBOX_ADDR)
+
+   but this time some drawbacks compared to using command-line flags. you can't specify a default setting (the return value from os.Getenv)
+    is the empty string if the environment variable doesnot exist, you don't get the -help functionality that you do with command-line flags
+     and the return value from os.Getenv() is always a string - you don't get automatic type conversions like you o with flag.Int() and the 
+      other command line functions
+
+   INSTEAD, you can get the best of both worlds by passing the environment variable as a command-line flag when starting the application
+    setting environment variable =  $env:SNIPPETBOX_ADDR=":9999"
+    run using the port store on the environment variable = go run ./cmd/web -addr="$env:SNIPPETBOX_ADDR"
+
+    BOOLEAN FLAGS 
+    flag.Bool()
+     go run ./example -flag=true =  go run ./example -flag
+       but for false we have to explicitly say so.
+
+   PRE-EXISTING VARIABLES
+     it is possible to parse command-line flag values into the memory addresses of pre-existing variables, using the flag.StringVar(),
+      flag.IntVar, flagBoolVar() and other functions.
+
+      type config struct {
+          addr string
+       staticDir string
+    }
+     var cfg config
+     flag.StringVar(&cfg.addr, "addr", ":4000", "HTTP network address")
+     flag.StringVar(&cfg.staticDir, "static-dir", "./ui/static", "Path to static assets")
+     flag.Parse()
+
+
+  LOG.NEW() - function is used to create custom loggers
