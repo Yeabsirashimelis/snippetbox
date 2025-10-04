@@ -67,3 +67,139 @@ Status code must be set before writing any body.
 ✅ In short:
 Header().Set → for response headers (must be before writing).
 WriteHeader → for status code (must be before writing).
+
+   THE HTTP.ERROR SHORTCUT
+if you want to send a non-200 status code and a plain-text response body, 
+  then it is a good opportunity to use the http.Error() shortcut. this is a lightweight
+  helper function which takes a given message and status code, then calls the w.WriteHeader
+  and w.write() methods behind-the-scenes for us
+
+  SYSTEM-GENERATED HEADERS AND CONTENT SNIFFING
+when sending a response Go will automatically set three system-generated headers for you:
+  - Date
+  - Content-Length
+  - Content-Type - automatically detected by go's http.DetectContentType() function.
+
+   MANIPULATING THE HEADER MAP 
+in the code above we used w.Header().set() to add a new header to the response header map. but there're 
+ also Add(), Del(), Get() and value() methods that you can use to read and manipulate the headers and map too
+ 
+ // Set a new cache-control header. If an existing "Cache-Control" header exists
+// it will be overwritten.
+w.Header().Set("Cache-Control", "public, max-age=31536000")
+// In contrast, the Add() method appends a new "Cache-Control" header and can
+// be called multiple times.
+w.Header().Add("Cache-Control", "public")
+w.Header().Add("Cache-Control", "max-age=31536000")
+// Delete all values for the "Cache-Control" header.
+w.Header().Del("Cache-Control")
+// Retrieve the first value for the "Cache-Control" header.
+w.Header().Get("Cache-Control")
+// Retrieve a slice of all values for the "Cache-Control" header.
+w.Header().Values("Cache-Control")
+
+the Del() method doesnot remove system-generated headers. to suppress these, you need to access the underlying header
+ map directly and set the value to nil.
+
+if you want to suppress the Date header, for eg, you need to write
+ w.Header()["Date"] = nil
+
+     THE IO.WRITER INTERFACE
+The code above introduced another new thing behind-the-scenes. If you take a look at the
+documentation for the fmt.Fprintf() function you’ll notice that it takes an io.Writer as the
+first parameter…
+func Fprintf(w io.Writer, format string, a ...any) (n int, err error)
+…but we passed it our http.ResponseWriter object instead — and it worked fine.
+We’re able to do this because the io.Writer type is an interface, and the
+http.ResponseWriter object satisfiesthe interface because it has a w.Write() method.
+
+we can write to the console as well - fmt.Fprintf(os.Stdout, "Hello %s\n", "World")
+
+  PROJECT STRUCTURE AND ORGANIZATION
+- The cmd directory will contain the application-specific code for the executable applications
+   in the project. For now we’ll have just one executable application — the web application —
+   which will live under the cmd/web directory
+- the internal directory will contain the ancillary non-application-specific code used in the project.
+   we will use it to hold potentially reuseable code like validation helpers and the SQL database models for the project
+
+- the ui directory will contain the user-interface assets used by the web application. specifically, the ui/html directory will contain
+   HTML templates and the ui/static files (like CSS and images)
+
+
+  EMBEDING FILES 
+ Go 1.16 introduces the embed package which makes it possibleto embed files into your Go program itself rather than
+  reading them from disk
+
+ for now reading our template files from the disk works fine and it is conceptually simpler that using the embed package, but we'll revisit this 
+  and explain how to use the embed functionality as an alternative later in the book
+
+  SERVING STATIC FILES
+  The Http.Fileserver handler
+
+  Go's net/http package ships with a built-in http.Fileserver handler which you can use to serve files over
+   Http from a specific directory. let's add a new route to our application so that all requests which begin with "/static/"
+   are handled using this
+
+
+   
+<!-- 
+    THE BLOCK ACTION
+ 
+  in the code below we've used the {{template}} action to invke one template from another. But Go also provides a {{block}}...{{end}}
+  action which you use instead. this acts like the {{template}} action, except it allows you to specify some default content if the template 
+   being invoked doesn't exist in the current template set.
+
+   in the context of a web application, this is useful when you want to provide some default content (such as sidebar) which individual pages 
+     can override on a case-by-case basis if they need to.
+ 
+syntatically you use it like this
+
+  {{define "base"}}
+     <h1>an example template</h1>
+     {{block "sidebar" . }}
+        <p>my default sidebar content </p>
+     {{end}}
+  {{end}}
+ 
+-->
+
+
+
+{{define "base"}}
+<!doctype html>
+<html lang='en'>
+<head>
+<meta charset='utf-8'>
+<title>{{template "title" .}} - Snippetbox</title>
+<!-- link to the CSS stylesheet and favicon -->
+ <link rel="stylesheet" href="/static/css/main.css">
+ <link rel="shortcut icon" href="/static/img/favicon.ico" type="image/x-icon">
+ <!-- also link to some fonts hosted by google -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700">
+</head>
+<body>
+<header>
+<h1><a href='/'>Snippetbox</a></h1>
+</header>
+<!-- Invoke the navigation template -->
+ {{template "nav"}}
+<main>
+{{template "main" .}}
+</main>
+<footer>Powered by <a href='https://golang.org/'>Go</a></footer>
+<!--and include the javascript file...  -->
+<script src="/static/js/main.js" type="text/javascript"></script>
+</body>
+</html>
+{{end}}
+
+
+   DISABLING DIRECTORY LISTINGS
+If you want to disable directory listings there are a few different approaches you can take.
+The simplest way? Add a blank index.html file to the specific directory that you want to
+disable listings for. This will then be served instead of the directory listing, and the user will
+get a 200 OK response with no body
+
+A more complicated (but arguably better) solution is to create a custom implementation of
+http.FileSystem, and have it return an os.ErrNotExist error for any directories. A full
+explanation and sample code can be found in this blog post.

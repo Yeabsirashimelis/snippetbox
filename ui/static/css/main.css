@@ -1,0 +1,118 @@
+/* Global styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-size: 18px;
+  font-family: "Ubuntu Mono", monospace;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+body {
+  line-height: 1.5;
+  background-color: #F1F3F6;
+  color: #34495E;
+  overflow-y: auto;
+  /* change from scroll to auto */
+  flex: 1;
+  /* allow main content to grow */
+}
+
+/* Layout */
+header, nav, main, footer {
+  padding: 2px calc((100% - 800px)/2);
+}
+
+/* Header */
+header {
+  background-color: #fff;
+  padding: 1rem calc((100% - 800px)/2);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+header h1 a {
+  text-decoration: none;
+  color: #34495E;
+  font-weight: 700;
+  font-size: 1.5rem;
+}
+
+/* Navigation */
+nav {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+nav a {
+  text-decoration: none;
+  color: #34495E;
+  margin-right: 1rem;
+  font-weight: 500;
+}
+
+nav a.active {
+  font-weight: 700;
+  border-bottom: 2px solid #3498DB;
+}
+
+/* Make main content expand to fill space */
+main {
+  padding: 2rem;
+  margin: 0 auto;
+  max-width: 800px;
+  flex: 1;
+  /* this pushes the footer down if content is short */
+}
+
+
+/* Card-like section for Latest Snippets */
+.snippet-card {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+  margin-top: 1rem;
+}
+
+.snippet-card h2 {
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+  color: #2C3E50;
+}
+
+.snippet-card p {
+  font-size: 1rem;
+  color: #7F8C8D;
+}
+
+/* Footer stays at the bottom */
+footer {
+  text-align: center;
+  padding: 1rem;
+  background-color: #2C3E50;
+  color: white;
+  margin-top: 2rem;
+  /* optional */
+}
+
+footer a {
+  color: #1ABC9C;
+  text-decoration: none;
+}
+
+/* Responsive */
+@media (max-width:768px) {
+  header, nav, main, footer {
+    padding: 1rem;
+  }
+  
+  .snippet-card {
+    padding: 1rem;
+  }
+}
