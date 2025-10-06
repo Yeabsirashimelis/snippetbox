@@ -8,6 +8,16 @@ import (
 )
 
 /*
+Define an application struct to hold the application-wide dependencies for the web application. for now we'll only include fields
+
+	for the 2 custom loggers, but we will add more to it as the build processes.
+*/
+type application struct {
+	errorLog *log.Logger
+	infoLog  *log.Logger
+}
+
+/*
 path which ends with a trailing slash are "subtree patterns" which are used to catchall
 */
 func main() {
@@ -44,32 +54,11 @@ func main() {
 	*/
 	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile) // Llongfile if you want to include the full-path
 
-	//Use http.NewServeMux() function to initialize a new servermux, then
-	//  register handler functions and corresponding URL patterns with the servemux
-	mux := http.NewServeMux()
-	// mux.HandleFunc("/", home)                    //subtree pattern - catchall which starts with "/"
-
-	// create a file server which serves files out of the "./ui/static" directory.
-	// Note that the path given to the http.Dir function is relative to the project directory root
-	fileServer := http.FileServer(http.Dir("./ui/static/")) // "hey, here is the directory that contains the fiels you can serve and create http handler that can serve static files from that directory"
-
-	// use the mux.handle() function to register the file server as the handler for all URL paths that start with "/static/".
-	//  for matching paths, we strip the "/static" prefix before the request reaches the file server
-	/*
-		     /static/ in the URL
-		    Any request starting with /static/ will be handled by this handler.
-		    http.StripPrefix("/static", fileServer)
-			Removes /static from the URL before passing it to fileServer.
-			For example:
-			URL: /static/css/style.css
-			Stripped URL: /css/style.css
-			File server looks for: ./ui/static/css/style.css on disk.
-	*/
-	mux.Handle("/static/", http.StripPrefix("/static", fileServer))
-
-	mux.HandleFunc("/", home)
-	mux.HandleFunc("/snippet/view", snippetView) //static path
-	mux.HandleFunc("/snippet/create", snippetCreate)
+	// initialize a new instance of our application struct, containing the dependencies
+	app := &application{
+		errorLog: errorLog,
+		infoLog:  infoLog,
+	}
 
 	/*use the http.listenAndServe() function to start a new web server. we pass in 2 parameters: the TCP network address
 	  to listen on (in this case ":4000") and the servemux we just created
@@ -80,9 +69,24 @@ func main() {
 	     to dereference the pointer
 	*/
 
+	/*
+	   initialize a new http.Server struct. we set the Addr and handler fields so that the server uses the same network address and routes as before,
+	     and set the ErrorLog field so that the server now uses the custom errorLog logger in the event of any problems.
+	*/
+
+	srv := &http.Server{
+		Addr:     *addr,
+		ErrorLog: errorLog,
+		Handler:  app.routes(),
+	}
+
 	// log.Printf("Starting server on %s", *addr)
+	// infoLog.Printf("Starting server on %s", *addr)
+	// err := http.ListenAndServe(*addr, mux)
+
 	infoLog.Printf("Starting server on %s", *addr)
-	err := http.ListenAndServe(*addr, mux)
+	// Call the listenAndServe method on our new http.Server struct
+	err := srv.ListenAndServe()
 
 	//if the http.ListenAndServe() returns an error we use the log.Fatal() function to log the error message and exit
 	// log.Fatal(err)

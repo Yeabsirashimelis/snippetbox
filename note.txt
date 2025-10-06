@@ -258,3 +258,26 @@ if you have built and deployed web applications before, then you're probably thi
 
 
   LOG.NEW() - function is used to create custom loggers
+
+  the Application struct pattern that we are using to inject dependencies won't work if your handlers are spread accross multiple packages.
+   in that case, an alternative approach is to create a "config" package exporting an Application struct and have your handler functions close over 
+    this to from a closure.
+
+    CENTRALIZED ERROR HANDLING
+     let's neaten up our application by moving some of the error handling code into helper methods. this will help separate our concerns and stop us 
+       repeating code as we progress through the build. create helpers.go file
+
+
+
+	                        $$$$$$$$$$$$$$$app.errorLog.Output(2, trace)$$$$$$$$$$$$$$$$$$$
+ If you look closely at this (app.errorLog.Println(trace)) you’ll notice a small problem: the file name and line number being
+ reported in the ERROR log line is now helpers.go:13 — because this is where the log message
+ is now being written from.
+ What we want to report is the file name and line number one step back in the stack trace,
+ which would give us a clearer idea of where the error actually originated from.
+ We can do this by changing the serverError() helper to use our logger’s Output() function
+ and setting the frame depth to 2. Reopen your helpers.go file and update it like so:
+                        
+               
+      ISOLATING THE APPPLICATION ROUTES - makes the main.go file cleaner
+      
