@@ -281,3 +281,33 @@ if you have built and deployed web applications before, then you're probably thi
                
       ISOLATING THE APPPLICATION ROUTES - makes the main.go file cleaner
       
+DATABASE DRIVEN RESPONSES - I use MYSQL
+
+   - install a database driver to acts as a "middleman" b/n MYSQL and you go application.
+   - connect MYSQL from your web application (specifically, "how to establish a pool of reuseable connections")
+   - create a standalone models package, so that your databse logic is reusable and decoupled from your web application.
+   - use the appropriate functions in Go's database/sql package to xecute different types of sql statements, and how to avoid 
+       common errors that can lead your server running out of resources.
+   - prevent sql injection attacks by using placeholder parameters.
+   - use transactions, so that you can execute multiple SQL statements in one atomic action
+
+USING THE SNIPPET MODEL 
+   to use this model in or handlers we need to establish a new SnippetModel struct in our main() function and then inject
+    it as a dependency via the application struct - just like we have with our other dependencies
+
+EXECUTING THE QUERY
+    Go provides three different methods for executing database queries
+       - DB.Query() is used for SELECT queries which return multiple rows.
+       - DB.QueryRow() is used for SELECT queries which return a single row.
+       - DB.Exec() is used for statements which don't return rows (like INSERT AND DELETE)
+
+BEHIND THE SCENES, THE DB.EXEC() METHOD WORKS IN THREE STEPS: 
+ 1, it creates a new prepared statement on the databse using the provided SQL statement. the database parses and compiles the statement,
+     then stores it ready for execution.
+ 2, in the second separate step, Exec() passes the parameter values to the database. the database then executes the prepared
+     statement using these parameters. B/C the parameters are transmitted later, after the statement has been compiled, the database 
+      treats them as pure data. they can't change the intent of the statement. so long as the original statement is not derived from an
+      untrusted data, injection cannot occur.
+ 3, it then closes (or deallocates) the prepared statement on the database.
+
+ placeholder in my sql is "?", but in postgress use "$N"

@@ -1,10 +1,13 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"text/template"
+
+	"snippetbox.yeabsira.net/internal/models"
 )
 
 // change th signiture of the handler so that it is defined as a method against the *application
@@ -70,10 +73,25 @@ func (app *application) snippetView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use the fmt.Fprintf() function to interpolate the id value with our response
-	// and write it to http.ResponseWritter
-	// fmt.Fprintf - you can write using this literally anywhere - Writing to console (same as fmt.Printf), writting to an http response, writting to a file
-	fmt.Fprintf(w, "Display a specific snippet with ID %d...", id)
+	snippet, err := app.snippets.Get(id)
+	if err != nil {
+		if errors.Is(err, models.ErrNoRecord) {
+			app.notFound(w)
+
+		} else {
+			app.serverError(w, err)
+		}
+		return
+	}
+
+	/*
+		// Use the fmt.Fprintf() function to interpolate the id value with our response
+		// and write it to http.ResponseWritter
+		// fmt.Fprintf - you can write using this literally anywhere - Writing to console (same as fmt.Printf), writting to an http response, writting to a file
+		fmt.Fprintf(w, "Display a specific snippet with ID %d...", id)
+	*/
+
+	fmt.Fprintf(w, "%+v", snippet)
 
 }
 
@@ -98,5 +116,18 @@ func (app *application) snippetCreate(w http.ResponseWriter, r *http.Request) {
 		app.clientError(w, http.StatusMethodNotAllowed) // use the clientError() helper
 		return
 	}
-	w.Write([]byte("create a new snippet..."))
+
+	title := "O snail"
+	content := "O snail\nClimb Mount Fuji,\nBut slowly, slowly!\n\n– Kobayashi Issa"
+	expires := 7
+
+	// pass the data to the SnippetModel.Insert() method, receiving the ID of the new record back
+	id, err := app.snippets.Insert(title, content, expires)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	//redirect the user to the relevant page for the snippet
+	http.Redirect(w, r, fmt.Sprintf("/snippet/view?id=%d", id), http.StatusSeeOther)
 }

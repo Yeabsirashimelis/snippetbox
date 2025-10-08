@@ -1,10 +1,21 @@
 package main
 
 import (
+	"database/sql"
 	"flag"
 	"log"
 	"net/http"
 	"os"
+
+	/*
+		Import the models package that we just created. you need to prefix this with  whatever module path you set up back
+		 (project setup and creating a module), so that the import statement looks like this :
+
+		 - "{your-module-path}/ internal/ models" - you can find your module path at the top of the go.mod file
+	*/
+	"snippetbox.yeabsira.net/internal/models"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 /*
@@ -15,6 +26,7 @@ Define an application struct to hold the application-wide dependencies for the w
 type application struct {
 	errorLog *log.Logger
 	infoLog  *log.Logger
+	snippets *models.SnippetModel
 }
 
 /*
@@ -32,6 +44,9 @@ func main() {
 		  go has a range of other functions including flag.Int(), flag.Bool(),... - they automatically convert the command-line flg to the appropriate type.
 	*/
 	addr := flag.String("addr", ":4000", "HTTP network address")
+
+	// Define a new command-line flag for the MYSQL DSN string
+	dsn := flag.String("dsn", "web:pass@/snippetbox?parseTime=true", "MySQL data source name")
 
 	/*
 		   Importantly, we use the flag.parse() function to parse the commad-line flag. this reads in the command-line flag value
@@ -54,10 +69,22 @@ func main() {
 	*/
 	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile) // Llongfile if you want to include the full-path
 
+	/*
+	   to keep the main() function tidy, I've put the code for creating a connection pool into the separate openDB() function below
+	*/
+	db, err := openDB(*dsn)
+	if err != nil {
+		errorLog.Fatal(err)
+	}
+
+	//we also defer a call to db.Close(), so that the connection pool is closed before the main() function exists
+	defer db.Close()
+
 	// initialize a new instance of our application struct, containing the dependencies
 	app := &application{
 		errorLog: errorLog,
 		infoLog:  infoLog,
+		snippets: &models.SnippetModel{DB: db},
 	}
 
 	/*use the http.listenAndServe() function to start a new web server. we pass in 2 parameters: the TCP network address
@@ -86,10 +113,26 @@ func main() {
 
 	infoLog.Printf("Starting server on %s", *addr)
 	// Call the listenAndServe method on our new http.Server struct
-	err := srv.ListenAndServe()
+	err = srv.ListenAndServe()
 
 	//if the http.ListenAndServe() returns an error we use the log.Fatal() function to log the error message and exit
 	// log.Fatal(err)
 
 	errorLog.Fatal(err)
+}
+
+// the openDB() function wraps sql.Open() and returns a sql.DB connection pool for a given dsn(connection string)
+func openDB(dsn string) (*sql.DB, error) {
+	// the sql.open function initialies a new sql.DB object, which is esentially a pool of database connections
+	db, err := sql.Open("mysql", dsn)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err = db.Ping(); err != nil {
+		return nil, err
+	}
+
+	return db, nil
 }
