@@ -106,5 +106,56 @@ func (m *SnippetModel) Get(id int) (*Snippet, error) {
 
 // This will return the 10 most recently created snippets.
 func (m *SnippetModel) Latest() ([]*Snippet, error) {
-	return nil, nil
+
+	// write the SQL statement you want to execute
+	stmt := `SELECT id, title, content, created, expires FROM snippets
+	WHERE expires > UTC_TIMESTAMP() ORDER BY id DESC LIMIT 10
+	`
+
+	// use the Query method on the connection pool to execute our SQL statement. this returns a sql.Rows result set containig the result of our query
+	rows, err := m.DB.Query(stmt)
+
+	if err != nil {
+		return nil, err
+	}
+
+	//we defer rows.Close() to ensure that sql.Rows resultset is always properly closed before the Latest method returns. this defer statement should come
+	//    *after* you check for an error from the Query() method. otherwise, if Query() returns an error, you'll get a panic trying to close a nil request
+
+	defer rows.Close()
+
+	snippets := []*Snippet{}
+
+	// use Rows.Next to iterate through the rows in the result set. this prepares the first (and then each subsquent) row to be acted on by the
+	//  row.Scan method. if the iteration over all the rows completes then the result set automaticlly closed itself and frees-up the underlying databse connection.
+
+	for rows.Next() {
+		// create a pointer to a new zeroed snippet struct
+		s := &Snippet{}
+
+		/*
+			          use rows.Scan() to copy the values from each field in the row to the new snippet object that we created. Again, the arguments to row.Scan()
+					   must be pointers to the place you want to copy the data into and the number of arguments must be exactly the same as the number of columns returned by your statement.
+		*/
+		err = rows.Scan(&s.ID, &s.Title, &s.Content, &s.Created, &s.Expires)
+		if err != nil {
+			return nil, err
+		}
+
+		// Append it to the slice of the snippets
+		snippets = append(snippets, s)
+
+	}
+
+	/*
+		when the rows.Next() loop has finished we call rows.Err() to retrieve any error that was encountered during the iteration. it is important to call
+			this - don't assume that a successful iteration was completed over the whole resultset
+	*/
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	//   if everything went OK then return the Snippets slice
+	return snippets, nil
 }

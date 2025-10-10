@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"text/template"
 
 	"snippetbox.yeabsira.net/internal/models"
 )
@@ -25,39 +24,49 @@ func (app *application) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Initialize a slice containing the paths to the two files. it's important to note that
-	// the file containing our base template must be the *first* in the slice.
-	files := []string{
-		"./ui/html/base.html",
-		"./ui/html/pages/home.html",
-		"./ui/html/partials/nav.html",
-	}
-
-	/*
-		use the template.ParseFiles() funtion to read the template file into a template set.
-		  if there's an error we log the detailed error message and send error response to the client
-
-		  notice that we can pass the slicce of the paths as a variadic parameter?
-	*/
-	ts, err := template.ParseFiles(files...)
+	snippets, err := app.snippets.Latest()
 	if err != nil {
-		app.errorLog.Println(err.Error())
-		// http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		app.serverError(w, err) // use the serverError() helper
+		app.serverError(w, err)
 		return
 	}
 
-	/*
-	   use the Execute template() method to write the content of the "base"
-	   //template as the response body
-	*/
-	err = ts.ExecuteTemplate(w, "base", nil)
-	if err != nil {
-		app.errorLog.Println(err.Error())
-		// http.Error(w, "Internal Server Error", 500)
-		app.serverError(w, err) // use the serverError() helper
-
+	for _, snippet := range snippets {
+		fmt.Fprintf(w, "%+v\n", snippet)
 	}
+
+	// // Initialize a slice containing the paths to the two files. it's important to note that
+	// // the file containing our base template must be the *first* in the slice.
+	// files := []string{
+	// 	"./ui/html/base.html",
+	// 	"./ui/html/pages/home.html",
+	// 	"./ui/html/partials/nav.html",
+	// }
+
+	// /*
+	// 	use the template.ParseFiles() funtion to read the template file into a template set.
+	// 	  if there's an error we log the detailed error message and send error response to the client
+
+	// 	  notice that we can pass the slicce of the paths as a variadic parameter?
+	// */
+	// ts, err := template.ParseFiles(files...)
+	// if err != nil {
+	// 	app.errorLog.Println(err.Error())
+	// 	// http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	// 	app.serverError(w, err) // use the serverError() helper
+	// 	return
+	// }
+
+	// /*
+	//    use the Execute template() method to write the content of the "base"
+	//    //template as the response body
+	// */
+	// err = ts.ExecuteTemplate(w, "base", nil)
+	// if err != nil {
+	// 	app.errorLog.Println(err.Error())
+	// 	// http.Error(w, "Internal Server Error", 500)
+	// 	app.serverError(w, err) // use the serverError() helper
+
+	// }
 }
 
 func (app *application) snippetView(w http.ResponseWriter, r *http.Request) {

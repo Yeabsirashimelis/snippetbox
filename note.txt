@@ -311,3 +311,83 @@ BEHIND THE SCENES, THE DB.EXEC() METHOD WORKS IN THREE STEPS:
  3, it then closes (or deallocates) the prepared statement on the database.
 
  placeholder in my sql is "?", but in postgress use "$N"
+
+ IMPORTANT : CLOSING the resultset with defer rows.close() is critical in the code. as long as a resultset is open it will keep the underlying
+              database connection open... so if something goes wrong in this method and the resultset isn't closed, it can rapidly lead to all the 
+               connections in your pool being used up.
+
+
+               TRANSACTIONS AND OTHER DETAILS
+   the database/ sql package
+   As you probably starting to realize, the database/sql package essentially provides a standard interface b/n your Go application and the world SQL databases
+
+   So long as you use the database/sql package, the Go code you wrute will generally be portable and will work with any kind of SQL database- whether it is 
+    MYSQL, POSTGRESQL, SQLLITE OR SOMETHING ELSE. this means that your application is not so tightly oupled to the database that you're currently using, and
+    the theory is that you can swap databases in the future without re-writting all of your code 
+
+    WORKING WITH TRANSACTIONS
+ it is important to realize that call to EXEC(), QUERY(), QUERYROW() can use any connection from sql.DB pool. even if you have two calls to EXEC()
+  immediately next to each other in your code, there is no gurantee that they use the same database connection.
+ sometimes this is not acceptable. for instance, if you lock a table with MYSQL's LOCK TABLE command you must call UNLOCK TABLES on excactly the 
+  same connection to avoid deadlock.
+
+  to guarantee that the sane connection is ued you can wrap multiple statements in a transaction
+
+  type ExampleModel struct {
+    DB *sql.DB
+ }
+ func (m *ExampleModel) ExampleTransaction() error {
+    // Calling the Begin() method on the connection pool creates a new sql.Tx
+    // object, which represents the in-progress database transaction.
+    tx, err := m.DB.Begin()
+    if err != nil {
+        return err
+    }
+    // Defer a call to tx.Rollback() to ensure it is always called before the 
+    // function returns. If the transaction succeeds it will be already be 
+    // committed by the time tx.Rollback() is called, making tx.Rollback() a 
+    // no-op. Otherwise, in the event of an error, tx.Rollback() will rollback 
+    // the changes before the function returns.
+    defer tx.Rollback()
+    // Call Exec() on the transaction, passing in your statement and any
+    // parameters. It's important to notice that tx.Exec() is called on the
+    // transaction object just created, NOT the connection pool. Although we're
+    // using tx.Exec() here you can also use tx.Query() and tx.QueryRow() in
+    // exactly the same way.
+    _, err = tx.Exec("INSERT INTO ...")
+    if err != nil {
+        return err
+    }
+    // Carry out another transaction in exactly the same way.
+    _, err = tx.Exec("UPDATE ...")
+    if err != nil {
+        return err
+    }
+    // If there are no errors, the statements in the transaction can be committed
+    // to the database with the tx.Commit() method. 
+    err = tx.Commit()
+    return err
+ }
+
+ you must always call either Rollback() or Commit() before your function returns. if you don't the connection willstay open and not be returned to
+  the connection pool. this can lead to hitting the maximum connection limit/ running out of resources. the simplest way to avoid this is to use defer tx.Rollback
+
+  transactions are super useful if you want to execute multiple SQL statements as a single atomic action. so long as you use the tx.Rollback() method in the 
+   event of any errors, the transaction ensures that either 
+       - all statements are executed successfully
+       - No statements are executed and the database remains unchanged
+
+
+            PREPARED STATEMENTS 
+      As I mentioned earlier, the Exec(), Query() and QueryRow() methods all use prepared
+      statements behind the scenes to help prevent SQL injection attacks. They set up a prepared
+      statement on the database connection, run it with the parameters provided, and then close
+      the prepared statement.
+      This might feel rather inefficient because we are creating and recreating the same prepared
+      statements every single time.
+      In theory, a better approach could be to make use of the DB.Prepare() method to create our
+      own prepared statement once, and reuse that instead. This is particularly true for complex
+      SQL statements (e.g. those which have multiple JOINS) and are repeated very often (e.g. a
+      bulk insert of tens of thousands of records). In these instances, the cost of re-preparing
+      statements may have a noticeable effect on run time.
+      Here’s the basic pattern for using your own prepared statement in a web application
